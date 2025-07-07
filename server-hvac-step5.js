@@ -316,6 +316,30 @@ function interpolatePosition(startPos, endPos, progress) {
 }
 
 async function generateHVACVideo(businessName, niche, htmlContent) {
+    // **CLEANUP OLD VIDEOS**: Remove all existing videos before generating new one
+    console.log('🧹 Cleaning up old videos before generation...');
+    const videosDir = path.join(__dirname, 'videos');
+    if (fs.existsSync(videosDir)) {
+        const existingVideos = fs.readdirSync(videosDir).filter(f => f.endsWith('.mp4'));
+        if (existingVideos.length > 0) {
+            console.log(`🗑️ Removing ${existingVideos.length} old video(s):`);
+            existingVideos.forEach(video => {
+                const videoPath = path.join(videosDir, video);
+                try {
+                    fs.unlinkSync(videoPath);
+                    console.log(`   ✅ Removed: ${video}`);
+                } catch (error) {
+                    console.warn(`   ⚠️ Could not remove ${video}: ${error.message}`);
+                }
+            });
+        } else {
+            console.log('✅ No old videos to clean up');
+        }
+    } else {
+        fs.mkdirSync(videosDir, { recursive: true });
+        console.log('✅ Created videos directory');
+    }
+
     const browser = await puppeteer.launch({
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         headless: true,
@@ -824,7 +848,7 @@ async function generateHVACVideo(businessName, niche, htmlContent) {
         
         console.log(`✅ HVAC SUCCESS! Video: ${path.basename(videoPath)} (${fileSizeInMB} MB)`);
         
-        // **VERIFY SINGLE VIDEO**: Ensure only one video exists
+        // **VERIFY SINGLE VIDEO**: Confirm successful cleanup and generation
         const outputVideosDir = path.join(__dirname, 'videos');
         const videoFiles = fs.readdirSync(outputVideosDir).filter(f => f.endsWith('.mp4'));
         console.log(`📊 VERIFICATION: Found ${videoFiles.length} video(s) in videos directory:`);
@@ -835,8 +859,12 @@ async function generateHVACVideo(businessName, niche, htmlContent) {
             console.log(`   📹 ${file} (${fileSize} MB)`);
         });
         
-        if (videoFiles.length > 1) {
-            console.warn(`⚠️ WARNING: Multiple videos detected! This should not happen.`);
+        if (videoFiles.length === 1) {
+            console.log(`✅ PERFECT! Exactly one video exists as expected.`);
+        } else if (videoFiles.length > 1) {
+            console.warn(`⚠️ WARNING: Multiple videos detected! Cleanup may have failed.`);
+        } else {
+            console.error(`❌ ERROR: No videos found! Generation may have failed.`);
         }
         
         return {
