@@ -123,7 +123,7 @@ jobs:
         
         if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
           echo "business_name=${{ github.event.client_payload.business_name || 'Professional HVAC Services' }}" >> $GITHUB_OUTPUT
-          echo "business_phone=${{ github.event.client_payload.business_phone || '(555) 123-4567' }}" >> $GITHUB_OUTPUT
+          echo "business_phone=${{ github.event.client_payload.business_phone || '+1 555-123-4567' }}" >> $GITHUB_OUTPUT
           echo "business_address=${{ github.event.client_payload.business_address || '123 Main Street, Your City, ST 12345' }}" >> $GITHUB_OUTPUT
           echo "business_website=${{ github.event.client_payload.business_website || 'www.yourhvac.com' }}" >> $GITHUB_OUTPUT
           echo "hero_title=${{ github.event.client_payload.hero_title || 'Professional HVAC Solutions' }}" >> $GITHUB_OUTPUT
@@ -143,7 +143,7 @@ jobs:
           echo "template=${{ github.event.inputs.template }}" >> $GITHUB_OUTPUT
         else
           echo "business_name=Demo HVAC Services" >> $GITHUB_OUTPUT
-          echo "business_phone=(555) 123-4567" >> $GITHUB_OUTPUT
+          echo "business_phone=+1 555-123-4567" >> $GITHUB_OUTPUT
           echo "business_address=123 Main Street, Your City, ST 12345" >> $GITHUB_OUTPUT
           echo "business_website=www.yourhvac.com" >> $GITHUB_OUTPUT
           echo "hero_title=Professional HVAC Solutions" >> $GITHUB_OUTPUT
