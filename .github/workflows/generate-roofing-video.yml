@@ -1,0 +1,274 @@
+name: 🏠 Dutch Roofing Video Generator
+on:
+  repository_dispatch:
+    types: [generate-roofing-video]
+
+env:
+  # Dutch Roofing Environment Configuration
+  LOCALE: "nl-NL"
+  TIMEZONE: "Europe/Amsterdam"
+  INDUSTRY: "roofing"
+  COUNTRY: "Netherlands"
+  VIDEO_PREFIX: "roofing"
+  MAX_DURATION: "16"
+  HERO_PAUSE: "1"
+  SCROLL_DURATION: "15"
+  
+  # Dutch Business Settings
+  CURRENCY: "EUR"
+  PHONE_FORMAT: "+31"
+  MAPS_REGION: "NL"
+  BUSINESS_HOURS_FORMAT: "24h"
+  
+  # Video Quality Settings
+  VIDEO_WIDTH: "1920"
+  VIDEO_HEIGHT: "1080"
+  VIDEO_FPS: "60"
+  VIDEO_QUALITY: "18"
+  TARGET_SIZE_MB: "1.7"
+
+jobs:
+  generate-dutch-roofing-video:
+    name: 🇳🇱 Generate Dutch Roofing Video
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: 🏠 Checkout Dutch Roofing Repository
+        uses: actions/checkout@v4
+        
+      - name: 🇳🇱 Setup Dutch Locale Environment
+        run: |
+          echo "🇳🇱 Setting up Dutch locale for roofing websites..."
+          sudo apt-get update
+          sudo apt-get install -y locales tzdata
+          sudo locale-gen nl_NL.UTF-8
+          sudo update-locale LANG=nl_NL.UTF-8
+          sudo timedatectl set-timezone Europe/Amsterdam
+          
+          # Dutch roofing business data validation
+          echo "📋 Validating Dutch roofing business data..."
+          echo "Business: ${{ github.event.client_payload.business_name }}"
+          echo "City: ${{ github.event.client_payload.business_city }}"
+          echo "Website: ${{ github.event.client_payload.website_url }}"
+          echo "Phone: ${{ github.event.client_payload.business_phone }}"
+          echo "Rating: ${{ github.event.client_payload.business_rating }}/5"
+          echo "Reviews: ${{ github.event.client_payload.business_reviews }}"
+          
+      - name: 🔧 Setup Node.js for Dutch Roofing
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: 📦 Install Dutch Roofing Dependencies
+        run: |
+          echo "📦 Installing dependencies for Dutch roofing video generation..."
+          npm ci
+          
+          # Install additional Dutch language support
+          sudo apt-get install -y fonts-liberation fonts-dejavu-core
+          
+      - name: 🎬 Generate Dutch Roofing Video
+        id: generate-video
+        run: |
+          echo "🏠 Starting Dutch roofing video generation..."
+          
+          # Extract Dutch business data
+          WEBSITE_URL="${{ github.event.client_payload.website_url }}"
+          BUSINESS_NAME="${{ github.event.client_payload.business_name }}"
+          BUSINESS_CITY="${{ github.event.client_payload.business_city }}"
+          BUSINESS_PHONE="${{ github.event.client_payload.business_phone }}"
+          BUSINESS_EMAIL="${{ github.event.client_payload.business_email }}"
+          BUSINESS_ADDRESS="${{ github.event.client_payload.business_address }}"
+          BUSINESS_RATING="${{ github.event.client_payload.business_rating }}"
+          BUSINESS_REVIEWS="${{ github.event.client_payload.business_reviews }}"
+          WORKFLOW_ID="${{ github.event.client_payload.workflow_id }}"
+          BATCH_ID="${{ github.event.client_payload.batch_id }}"
+          
+          # Sanitize business name for filename (Dutch characters)
+          SANITIZED_NAME=$(echo "$BUSINESS_NAME" | tr '[:upper:]' '[:lower:]' | \
+            sed 's/[àáâãäå]/a/g; s/[èéêë]/e/g; s/[ìíîï]/i/g; s/[òóôõö]/o/g; s/[ùúûü]/u/g; s/[ç]/c/g; s/[ñ]/n/g' | \
+            sed 's/[^a-z0-9]/_/g' | sed 's/_\+/_/g' | sed 's/^_//; s/_$//')
+          
+          TIMESTAMP=$(date +%s%3N)
+          VIDEO_FILENAME="roofing_${SANITIZED_NAME}_${TIMESTAMP}.mp4"
+          
+          echo "📋 Dutch Roofing Video Details:"
+          echo "  🏢 Business: $BUSINESS_NAME"
+          echo "  🏙️ City: $BUSINESS_CITY"
+          echo "  🌐 Website: $WEBSITE_URL"
+          echo "  📞 Phone: $BUSINESS_PHONE"
+          echo "  ⭐ Rating: $BUSINESS_RATING ($BUSINESS_REVIEWS reviews)"
+          echo "  📁 Filename: $VIDEO_FILENAME"
+          echo "  🔄 Workflow: $WORKFLOW_ID | Batch: $BATCH_ID"
+          
+          # Start roofing video server
+          echo "🚀 Starting Dutch roofing video generator..."
+          node server-roofing-simple.js &
+          SERVER_PID=$!
+          
+          # Wait for server to start
+          sleep 5
+          
+          # Health check
+          echo "❤️ Checking roofing video generator health..."
+          curl -f http://localhost:3030/health || {
+            echo "❌ Dutch roofing video generator failed to start"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          }
+          
+          # Generate Dutch roofing video
+          echo "🎬 Generating video for Dutch roofing company: $BUSINESS_NAME"
+          
+          RESPONSE=$(curl -s -X POST http://localhost:3030/generate-video \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"url\": \"$WEBSITE_URL\",
+              \"businessName\": \"$BUSINESS_NAME\",
+              \"businessCity\": \"$BUSINESS_CITY\",
+              \"businessPhone\": \"$BUSINESS_PHONE\",
+              \"businessEmail\": \"$BUSINESS_EMAIL\",
+              \"businessAddress\": \"$BUSINESS_ADDRESS\",
+              \"businessRating\": \"$BUSINESS_RATING\",
+              \"businessReviews\": \"$BUSINESS_REVIEWS\",
+              \"workflowId\": \"$WORKFLOW_ID\",
+              \"batchId\": \"$BATCH_ID\",
+              \"locale\": \"nl-NL\",
+              \"industry\": \"roofing\",
+              \"country\": \"Netherlands\"
+            }")
+          
+          echo "📊 API Response: $RESPONSE"
+          
+          # Extract video filename from response
+          GENERATED_FILENAME=$(echo "$RESPONSE" | jq -r '.filename // empty')
+          
+          if [ -z "$GENERATED_FILENAME" ]; then
+            echo "❌ Failed to extract filename from API response"
+            echo "Response: $RESPONSE"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Wait for video generation to complete
+          echo "⏳ Waiting for Dutch roofing video generation to complete..."
+          sleep 45
+          
+          # Verify video file exists
+          if [ -f "videos/$GENERATED_FILENAME" ]; then
+            VIDEO_SIZE=$(du -h "videos/$GENERATED_FILENAME" | cut -f1)
+            echo "✅ Dutch roofing video generated successfully!"
+            echo "📁 File: $GENERATED_FILENAME"
+            echo "📊 Size: $VIDEO_SIZE"
+            
+            # Set outputs for next steps
+            echo "filename=$GENERATED_FILENAME" >> $GITHUB_OUTPUT
+            echo "business_name=$BUSINESS_NAME" >> $GITHUB_OUTPUT
+            echo "business_city=$BUSINESS_CITY" >> $GITHUB_OUTPUT
+            echo "video_size=$VIDEO_SIZE" >> $GITHUB_OUTPUT
+            echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+            echo "batch_id=$BATCH_ID" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Dutch roofing video file not found: videos/$GENERATED_FILENAME"
+            ls -la videos/ || echo "Videos directory not found"
+            kill $SERVER_PID 2>/dev/null || true
+            exit 1
+          fi
+          
+          # Cleanup
+          kill $SERVER_PID 2>/dev/null || true
+          
+        env:
+          LANG: nl_NL.UTF-8
+          LC_ALL: nl_NL.UTF-8
+          TZ: Europe/Amsterdam
+          
+      - name: 📤 Upload Dutch Roofing Video
+        uses: actions/upload-artifact@v4
+        with:
+          name: dutch-roofing-video-${{ steps.generate-video.outputs.workflow_id }}-${{ steps.generate-video.outputs.batch_id }}
+          path: videos/${{ steps.generate-video.outputs.filename }}
+          retention-days: 30
+          
+      - name: 📋 Dutch Roofing Video Summary
+        run: |
+          echo "## 🏠 Dutch Roofing Video Generated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🇳🇱 Business Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Company:** ${{ steps.generate-video.outputs.business_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **City:** ${{ steps.generate-video.outputs.business_city }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Rating:** ${{ github.event.client_payload.business_rating }}/5 ⭐" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reviews:** ${{ github.event.client_payload.business_reviews }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Phone:** ${{ github.event.client_payload.business_phone }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎬 Video Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Filename:** \`${{ steps.generate-video.outputs.filename }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Size:** ${{ steps.generate-video.outputs.video_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration:** 16 seconds (1s hero + 15s scrolling)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Quality:** 1920x1080 HD @ 60fps" >> $GITHUB_STEP_SUMMARY
+          echo "- **Format:** MP4 (H.264)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Workflow Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow ID:** ${{ steps.generate-video.outputs.workflow_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch ID:** ${{ steps.generate-video.outputs.batch_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Website:** ${{ github.event.client_payload.website_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Generated:** $(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏠 Roofing Features Captured" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Hero section with company name and city" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Dutch roofing services (dakrenovatie, dakisolatie)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Customer reviews and ratings" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Contact information and Google Maps" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Professional roofing business presentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 **Ready for Dutch roofing customer engagement!**" >> $GITHUB_STEP_SUMMARY
+          
+      - name: 🔔 Notify Dutch Roofing Video Completion
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Dutch roofing video generated successfully for ${{ steps.generate-video.outputs.business_name }}"
+            echo "📁 Video: ${{ steps.generate-video.outputs.filename }}"
+            echo "📊 Size: ${{ steps.generate-video.outputs.video_size }}"
+            echo "🏙️ City: ${{ steps.generate-video.outputs.business_city }}"
+            echo "⭐ Rating: ${{ github.event.client_payload.business_rating }}/5"
+          else
+            echo "❌ Dutch roofing video generation failed for ${{ github.event.client_payload.business_name }}"
+            echo "🌐 Website: ${{ github.event.client_payload.website_url }}"
+            echo "🏙️ City: ${{ github.event.client_payload.business_city }}"
+            echo "🔄 Workflow: ${{ github.event.client_payload.workflow_id }}"
+          fi
+          
+  # Batch Processing Job for Multiple Dutch Roofing Companies
+  batch-dutch-roofing-videos:
+    name: 🏗️ Batch Process Dutch Roofing Videos
+    runs-on: ubuntu-latest
+    if: github.event.client_payload.batch_size > 1
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        batch_chunk: [1, 2, 3, 4, 5] # Process up to 5 parallel batches
+      max-parallel: 3 # Limit concurrent jobs to manage resources
+      
+    steps:
+      - name: 🏠 Checkout for Batch Processing
+        uses: actions/checkout@v4
+        
+      - name: 🇳🇱 Setup Dutch Batch Environment
+        run: |
+          echo "🏗️ Setting up Dutch roofing batch processing..."
+          echo "Batch ID: ${{ github.event.client_payload.batch_id }}"
+          echo "Batch Size: ${{ github.event.client_payload.batch_size }}"
+          echo "Chunk: ${{ matrix.batch_chunk }}"
+          
+      - name: 📊 Dutch Roofing Batch Summary
+        run: |
+          echo "## 🏗️ Dutch Roofing Batch Processing" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch ID:** ${{ github.event.client_payload.batch_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Companies:** ${{ github.event.client_payload.batch_size }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Processing Chunk:** ${{ matrix.batch_chunk }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** 3,395 Dutch roofing companies" >> $GITHUB_STEP_SUMMARY
+          echo "- **Industry:** Roofing (Netherlands)" >> $GITHUB_STEP_SUMMARY 
